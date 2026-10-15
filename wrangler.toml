@@ -1,0 +1,10 @@
+name = "jarvis-inoni"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Format: GITHUB-NAME/REPO-NAME, das Repo mit dem Ordner memory/
+MEMORY_REPO = "DEIN-NAME/jarvis-inoni"
+CLAUDE_MODEL = "claude-sonnet-5-5"
+# Nach dem Deployment der Web-App auf die eigene Adresse setzen, z. B. https://jarvis-inoni.pages.dev
+ALLOWED_ORIGIN = "*"
