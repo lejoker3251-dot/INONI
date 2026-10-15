@@ -1,6 +1,6 @@
 # Inoni
 
-Persoenlicher deutscher Sprachassistent mit 3D-Weltall.
+Persoenlicher deutscher Sprachassistent mit 3D-Android.
 
 - index.html : die App (GitHub Pages)
 - worker.js  : der Cloudflare-Worker (NICHT auf GitHub Pages, sondern bei Cloudflare einfuegen)
