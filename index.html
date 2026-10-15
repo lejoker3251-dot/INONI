@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Inoni</title><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Inoni">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--panel:rgba(12,20,56,.28);--line:rgba(255,255,255,.24);--tx:#f0f6ff;--dim:#b4c2e6;--c:#1ea7fd;--ok:#12c48b;--pk:#ff6fb1;--am:#ffa826;--vi:#7c5cff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:radial-gradient(ellipse at 30% 20%,#1b1650,#070b1f 70%);color:var(--tx);font:16px/1.4 -apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;overflow-x:hidden}
+
+.app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:820px){.app{grid-template-columns:1.25fr 1fr;align-items:start}header,.full{grid-column:1/-1}}
+header{display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:700;letter-spacing:.3em;font-size:24px;background:linear-gradient(90deg,var(--c),var(--vi),var(--pk));-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo b{font-weight:700}
+#status{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);box-shadow:0 8px 30px rgba(60,100,180,.12)}
+.orbit{position:relative;aspect-ratio:1/1;max-height:70vh;width:100%;overflow:visible;background:none;border:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+canvas{width:100%;height:100%;display:block;touch-action:manipulation}
+.hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:var(--dim);letter-spacing:.1em}
+#cv{animation:fl 8s ease-in-out infinite}@keyframes fl{0%,100%{transform:translateY(-8px)}50%{transform:translateY(10px)}}
+.side{display:grid;gap:14px}
+.hub h2,.log h2{margin:0 0 10px;font-size:12px;letter-spacing:.25em;color:var(--dim);font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.tile{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.1);color:var(--tx);text-align:left;font:inherit;cursor:pointer;position:relative;min-height:84px}
+.tile:disabled{opacity:.55;cursor:default}
+.tile .t{font-weight:600}.tile .v{font-size:13px;color:var(--dim);margin-top:4px}
+.chip{position:absolute;top:10px;right:10px;font-size:10px;letter-spacing:.1em;color:var(--ok)}
+.chip.soon{color:var(--dim)}
+.tile:not(:disabled):active{box-shadow:0 4px 16px rgba(30,167,253,.35)}
+#log{max-height:220px;overflow:auto;display:grid;gap:8px;font-size:15px}
+.m{padding:8px 12px;border-radius:12px;max-width:92%}
+.m.du{justify-self:end;background:rgba(30,167,253,.15)}
+.m.in{justify-self:start;background:rgba(124,92,255,.12)}
+.bar{display:flex;gap:10px;align-items:center;padding:10px}
+#mic{width:64px;height:64px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--c),var(--vi));color:#fff;font-size:26px;cursor:pointer;flex:none;box-shadow:0 6px 20px rgba(124,92,255,.4)}
+#mic.on{background:linear-gradient(135deg,var(--ok),#7be8c0);box-shadow:0 6px 24px rgba(18,196,139,.55)}
+#txt{flex:1;min-width:0;background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:14px;color:var(--tx);padding:14px;font:inherit}
+#send{background:var(--c);border:none;color:#fff;font-weight:600;border-radius:14px;padding:14px 16px;font:inherit}
+.note{font-size:12px;color:#c9d6ff;padding:0 14px 10px}#sp{position:fixed;inset:0;width:100%;height:100%;z-index:0}#wk{border:1px solid var(--line);background:rgba(255,255,255,.1);color:var(--tx);border-radius:14px;padding:10px 12px;font:inherit;font-size:13px;flex:none;line-height:1.2}#wk.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+</style></head><body><canvas id="sp"></canvas>
+<div class="app">
+<header><div class="logo">INON<b>I</b></div><div id="status">Bereit</div></header>
+<div class="card orbit" id="orb"><div class="hint">TIPPE AUF EINEN ORBIT-KNOTEN</div></div>
+<div class="side">
+ <div class="card hub" style="padding:14px"><h2>HUB</h2><div class="tiles" id="tiles"></div></div>
+ <div class="card log" style="padding:14px"><h2>PROTOKOLL</h2><div id="log"><div class="m in">Hallo, ich bin Inoni. Tippe auf „Inoni-Wort“ und sag einfach „Inoni, wie spät ist es?“</div></div></div>
+</div>
+<div class="card bar full"><button id="mic" aria-label="Sprechen">🎙</button><button id="wk">👂 „Inoni“<br>Wort</button><input id="txt" placeholder="Oder hier tippen …" enterkeyhint="send"><button id="send">Senden</button></div>
+<div class="note full" id="note"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const COL={idle:[30,167,253],listen:[18,196,139],think:[124,92,255],speak:[255,140,60]};
+const LBL={idle:'Bereit',listen:'Ich höre zu …',think:'Ich denke nach …',speak:'Ich spreche'};
+let st='idle',cur=[...COL.idle],level=0;
+function setState(s){st=s;$('#status').textContent=(s==='idle'&&wake)?'Sag „Inoni“ …':LBL[s];$('#mic').classList.toggle('on',s==='listen')}
+const store={get(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let notes=store.get('inoni_notes')||[];let timers=0;
+const MODS=[
+ {n:'Zeit',live:1,q:'Wie spät ist es und welcher Tag ist heute?',v:()=>new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})},
+ {n:'Notizen',live:1,q:'Lies mir meine Notizen vor.',v:()=>notes.length+' gespeichert'},
+ {n:'Timer',live:1,q:'Stelle einen Timer auf 1 Minute.',v:()=>timers+' aktiv'},
+ {n:'Suche',live:1,q:'Suche im Internet nach den wichtigsten Nachrichten von heute.',v:()=>'Internet'},
+ {n:'Mail',live:0,v:()=>'Schritt 3'},
+ {n:'Kalender',live:0,v:()=>'Schritt 3'}];
+['#1ea7fd','#ffa826','#ff6fb1','#7c5cff','#12c48b','#ff7a45'].forEach((c,i)=>MODS[i].col=c);
+const tiles=$('#tiles');
+MODS.forEach(m=>{const b=document.createElement('button');b.className='tile';b.style.borderTop='4px solid '+m.col;b.disabled=!m.live;
+ b.innerHTML='<div class="t">'+m.n+'</div><div class="v"></div><span class="chip'+(m.live?'':' soon')+'">'+(m.live?'AKTIV':'BALD')+'</span>';
+ m.el=b.querySelector('.v');if(m.live)b.onclick=()=>ask(m.q);tiles.appendChild(b)});
+function refreshHub(){MODS.forEach(m=>m.el.textContent=m.v())}refreshHub();setInterval(refreshHub,5000);
+function addMsg(w,t){const d=document.createElement('div');d.className='m '+w;d.textContent=t;const l=$('#log');l.appendChild(d);l.scrollTop=l.scrollHeight}
+/* ---- 3D-Weltall (three.js) ---- */
+function init3d(){
+const R=new THREE.WebGLRenderer({canvas:$('#sp'),antialias:true});
+R.setPixelRatio(Math.min(window.devicePixelRatio||1,2));R.setClearColor(0x03050f,1);R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.15;
+const scene=new THREE.Scene(),CZ=18,cam=new THREE.PerspectiveCamera(45,1,.1,400);cam.position.set(0,0,CZ);
+const rnd=(a,b)=>a+Math.random()*(b-a),cnv=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const tex=c=>{const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t};
+const ADD=THREE.AdditiveBlending;
+function glowTex(col){const c=cnv(128,128),x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,col+'cc');g.addColorStop(1,col+'00');x.fillStyle=g;x.fillRect(0,0,128,128);return tex(c)}
+function nebTex(col){const c=cnv(256,256),x=c.getContext('2d');for(let i=0;i<14;i++){const px=rnd(60,196),py=rnd(60,196),r=rnd(40,100),g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,col+'55');g.addColorStop(1,col+'00');x.fillStyle=g;x.fillRect(0,0,256,256)}return tex(c)}
+function planetTex(c1,c2,bands,seed,cloud){const W=512,Hh=256,c=cnv(W,Hh),x=c.getContext('2d'),im=x.createImageData(W,Hh),d=im.data,A=new THREE.Color(c1),B=new THREE.Color(c2);
+ for(let j=0;j<Hh;j++){const v=j/Hh;for(let i=0;i<W;i++){const a=i/W*6.2832;
+  const n=.5+.2*Math.sin(a*3+Math.sin(v*9+seed)*2)+.15*Math.sin(a*7+v*13+seed)+.1*Math.sin(a*13-v*5+seed*2)+.05*Math.sin(a*29+v*31);
+  let t=bands?.5+.5*Math.sin(v*bands*3.1416+(n-.5)*4):n;t=Math.min(1,Math.max(0,t));
+  let r=A.r+(B.r-A.r)*t,g=A.g+(B.g-A.g)*t,b=A.b+(B.b-A.b)*t;
+  if(cloud){const m=Math.max(0,Math.sin(a*5+v*17+seed*3)*Math.sin(a*11-v*7+seed)+.25*Math.sin(a*23+v*29)-.15),k=Math.min(1,m*1.6)*.85;r+=(1-r)*k;g+=(1-g)*k;b+=(1-b)*k}
+  const p=(j*Hh*0+j*W+i)*4;d[p]=r*255;d[p+1]=g*255;d[p+2]=b*255;d[p+3]=255}}
+ x.putImageData(im,0,0);return tex(c)}
+function ringTex(col){const c=cnv(512,4),x=c.getContext('2d'),g=x.createLinearGradient(0,0,512,0);for(let i=0;i<=40;i++)g.addColorStop(i/40,'rgba('+col+','+(Math.random()*.6+.2)+')');x.fillStyle=g;x.fillRect(0,0,512,4);return tex(c)}
+function ringGeo(i,o){const g=new THREE.RingGeometry(i,o,96,1),p=g.attributes.position,uv=g.attributes.uv,v=new THREE.Vector3();for(let k=0;k<p.count;k++){v.fromBufferAttribute(p,k);uv.setXY(k,(v.length()-i)/(o-i),1)}return g}
+function atmo(col){return new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color(col)}},vertexShader:`varying vec3 n;varying vec3 v;void main(){n=normalize(normalMatrix*normal);vec4 m=modelViewMatrix*vec4(position,1.);v=normalize(-m.xyz);gl_Position=projectionMatrix*m;}`,fragmentShader:`uniform vec3 c;varying vec3 n;varying vec3 v;void main(){float f=pow(1.-abs(dot(n,v)),3.);gl_FragColor=vec4(c,f*.9);}`,transparent:true,blending:ADD,depthWrite:false})}
+function label(t){const c=cnv(256,64),x=c.getContext('2d');x.font='600 30px -apple-system,Helvetica,sans-serif';x.textAlign='center';x.textBaseline='middle';x.shadowColor='#000';x.shadowBlur=8;x.fillStyle='#fff';x.fillText(t.toUpperCase(),128,32);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(c),transparent:true,depthTest:false}));s.scale.set(.9,.225,1);return s}
+const dot=glowTex('#ffffff');
+/* Sterne + Nebel */
+const N=3000,pos=new Float32Array(N*3),col=new Float32Array(N*3),tc=new THREE.Color();
+for(let i=0;i<N;i++){const r=rnd(60,150),th=Math.random()*6.283,ph=Math.acos(rnd(-1,1));pos[i*3]=r*Math.sin(ph)*Math.cos(th);pos[i*3+1]=r*Math.sin(ph)*Math.sin(th);pos[i*3+2]=r*Math.cos(ph);tc.setHSL(rnd(.5,.75),.5,rnd(.7,1));col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
+const sgeo=new THREE.BufferGeometry();sgeo.setAttribute('position',new THREE.BufferAttribute(pos,3));sgeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+const stars=new THREE.Points(sgeo,new THREE.PointsMaterial({size:.5,map:dot,sizeAttenuation:true,vertexColors:true,transparent:true,depthWrite:false}));scene.add(stars);
+[['#ff4fa3',-40,18,-90,120],['#6a4cff',50,-10,-100,140],['#1ea7ff',0,-40,-95,130],['#ff9a3c',-60,-30,-100,90]].forEach(n=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nebTex(n[0]),blending:ADD,transparent:true,opacity:.55,depthWrite:false}));s.position.set(n[1],n[2],n[3]);s.scale.set(n[4],n[4],1);scene.add(s)});
+/* Sonne + Licht */
+const sunG=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffcf7a'),blending:ADD,depthWrite:false,transparent:true}));sunG.scale.set(60,60,1);sunG.position.set(-45,22,-40);scene.add(sunG);
+const sun=new THREE.Mesh(new THREE.SphereGeometry(3,32,24),new THREE.MeshBasicMaterial({color:0xfff2cc}));sun.position.copy(sunG.position);scene.add(sun);
+const dl=new THREE.DirectionalLight(0xfff0d8,2.6);dl.position.copy(sunG.position);scene.add(dl);scene.add(new THREE.AmbientLight(0x2a3a7a,.55));
+/* Planeten */
+const SP=new THREE.Group();scene.add(SP);
+const PLN=[
+ {r:7.5,s:1.1,c1:'#f2c27b',c2:'#b5651d',b:9,seed:1,ring:'255,225,190',sp:.05,ph:0,atm:'#ffcf8a',tilt:.2},
+ {r:9.8,s:.8,c1:'#1e6fd9',c2:'#2ea36a',b:0,seed:4,cloud:1,sp:-.04,ph:2,atm:'#6bb8ff',tilt:-.15,moon:1},
+ {r:12,s:1.5,c1:'#d9a6ff',c2:'#6a3fd1',b:12,seed:7,ring:'255,200,240',sp:.03,ph:4,atm:'#c9a0ff',tilt:.3},
+ {r:6,s:.45,c1:'#d96a4a',c2:'#6e2a1a',b:0,seed:9,sp:-.07,ph:1,atm:'#ff8a6a',tilt:.1},
+ {r:13.5,s:.7,c1:'#bfeeff',c2:'#5aa9d6',b:6,seed:12,sp:.025,ph:5.5,atm:'#9fe8ff',tilt:-.25}];
+PLN.forEach(p=>{const g=new THREE.Group();
+ p.m=new THREE.Mesh(new THREE.SphereGeometry(p.s,48,32),new THREE.MeshStandardMaterial({map:planetTex(p.c1,p.c2,p.b,p.seed,p.cloud),roughness:.85,metalness:0}));g.add(p.m);
+ g.add(new THREE.Mesh(new THREE.SphereGeometry(p.s*1.12,32,24),atmo(p.atm)));
+ if(p.ring){const rm=new THREE.Mesh(ringGeo(p.s*1.4,p.s*2.3),new THREE.MeshBasicMaterial({map:ringTex(p.ring),transparent:true,side:THREE.DoubleSide,depthWrite:false,opacity:.85}));rm.rotation.x=1.25;rm.rotation.y=.2;g.add(rm)}
+ if(p.moon){p.mo=new THREE.Mesh(new THREE.SphereGeometry(.18,24,16),new THREE.MeshStandardMaterial({color:0xcccccc,roughness:1}));g.add(p.mo)}
+ p.g=g;SP.add(g)});
+/* Inoni-Kern */
+const G=new THREE.Group();scene.add(G);
+const uni={t:{value:0},l:{value:0},c:{value:new THREE.Color()}};
+const core=new THREE.Mesh(new THREE.SphereGeometry(.62,64,48),new THREE.ShaderMaterial({uniforms:uni,
+ vertexShader:`varying vec3 p;varying vec3 n;varying vec3 v;void main(){p=position;n=normalize(normalMatrix*normal);vec4 m=modelViewMatrix*vec4(position,1.);v=normalize(-m.xyz);gl_Position=projectionMatrix*m;}`,
+ fragmentShader:`uniform float t;uniform float l;uniform vec3 c;varying vec3 p;varying vec3 n;varying vec3 v;
+float h(vec3 q){return fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);}
+float vn(vec3 q){vec3 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 q){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*vn(q);q*=2.1;a*=.5;}return s;}
+void main(){float f=fbm(p*2.6+vec3(0.,t*.35,t*.2));float fr=pow(1.-max(dot(normalize(n),normalize(v)),0.),2.2);vec3 col=mix(c*.3,c*1.3,f)+vec3(.9)*pow(f,5.)*1.2+c*fr*1.8+c*l*.3;gl_FragColor=vec4(col,1.);}`}));G.add(core);
+const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffffff'),color:0x38e1ff,blending:ADD,transparent:true,depthWrite:false}));G.add(glow);
+const shells=[[.85,1,.2],[1.02,2,.1]].map(q=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(q[0],q[1]),new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:q[2]}));G.add(m);return m});
+const HN=500,hp=new Float32Array(HN*3);for(let i=0;i<HN;i++){const r=rnd(.9,2.3),th=Math.random()*6.283,ph=Math.acos(rnd(-1,1));hp[i*3]=r*Math.sin(ph)*Math.cos(th);hp[i*3+1]=r*Math.sin(ph)*Math.sin(th);hp[i*3+2]=r*Math.cos(ph)}
+const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(hp,3));
+const halo=new THREE.Points(hg,new THREE.PointsMaterial({size:.06,map:dot,color:0xffffff,transparent:true,opacity:.8,blending:ADD,depthWrite:false}));G.add(halo);
+const RG=[{r:1.15,rx:1.2,ry:0,rz:0,sp:.35},{r:1.55,rx:.6,ry:.5,rz:.6,sp:-.25},{r:1.95,rx:1.7,ry:-.4,rz:.2,sp:.18}];
+const piv=RG.map(q=>{const p=new THREE.Group();p.rotation.set(q.rx,q.ry,q.rz);const s=new THREE.Group();p.add(s);s.add(new THREE.Mesh(new THREE.TorusGeometry(q.r,.008,8,160),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55})));G.add(p);return s});
+const hits=[];
+MODS.forEach((m,i)=>{const q=RG[i%3],a=i*2.1,n=new THREE.Group(),c=new THREE.Color(m.col);if(!m.live)c.lerp(new THREE.Color('#8899aa'),.6);
+ n.position.set(Math.cos(a)*q.r,Math.sin(a)*q.r,0);
+ n.add(new THREE.Mesh(new THREE.SphereGeometry(.085,24,16),new THREE.MeshBasicMaterial({color:c})));
+ const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:dot,color:c,blending:ADD,transparent:true,depthWrite:false}));gl.scale.set(m.live?.7:.45,m.live?.7:.45,1);n.add(gl);
+ const lb=label(m.n);lb.position.set(Math.cos(a)*.34,Math.sin(a)*.34,0);n.add(lb);
+ const h=new THREE.Mesh(new THREE.SphereGeometry(.28,8,8),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));h.userData.m=m;n.add(h);hits.push(h);piv[i%3].add(n)});
+/* Steuerung */
+const orb=$('#orb'),tmp=new THREE.Color(),ray=new THREE.Raycaster();let px=0,py=0;
+addEventListener('pointermove',e=>{px=e.clientX/innerWidth-.5;py=e.clientY/innerHeight-.5});
+function size(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',size);size();
+orb.addEventListener('click',e=>{ray.setFromCamera(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1),cam);const h=ray.intersectObjects(hits)[0];if(h&&h.object.userData.m.live)ask(h.object.userData.m.q)});
+function frame(ms){const t=ms/1000;
+ try{
+ for(let i=0;i<3;i++)cur[i]+=(COL[st][i]-cur[i])*.06;
+ const target=st==='speak'?.5+.5*Math.abs(Math.sin(t*9)*Math.sin(t*3.7)):st==='listen'?.35+.2*Math.sin(t*5):st==='think'?.3:.08;level+=(target-level)*.15;
+ tmp.setRGB(cur[0]/255,cur[1]/255,cur[2]/255);uni.t.value=t;uni.l.value=level;uni.c.value.copy(tmp);
+ glow.material.color.copy(tmp);glow.scale.setScalar(3.4+level*1.6+Math.sin(t*2)*.1);core.scale.setScalar(1+level*.12);
+ shells.forEach((m,i)=>{m.material.color.copy(tmp);m.rotation.y=t*(i?-.15:.2);m.rotation.x=t*.1});halo.rotation.y=t*.05;
+ piv.forEach((s,i)=>{s.rotation.z+=RG[i].sp*.01;s.children[0].material.color.copy(tmp)});
+ const r=orb.getBoundingClientRect(),u=2*CZ*Math.tan(cam.fov*Math.PI/360)/innerHeight;
+ G.scale.setScalar(Math.min(r.width,r.height)/2*u/2.3);G.position.set((r.left+r.width/2-innerWidth/2)*u,-(r.top+r.height/2-innerHeight/2)*u+Math.sin(t*1.1)*.12,0);G.rotation.y=Math.sin(t*.3)*.3;SP.position.copy(G.position);SP.position.y=G.position.y;
+ SP.rotation.y=px*.15;SP.rotation.x=py*.1;stars.rotation.y=t*.003+px*.05;
+ PLN.forEach(p=>{const a=p.ph+t*p.sp,x=Math.cos(a)*p.r;p.g.position.set(x,Math.sin(a)*p.r*.2+p.tilt*x*.3,Math.sin(a)*p.r*.6);p.m.rotation.y+=.002;if(p.mo)p.mo.position.set(Math.cos(t*.8)*p.s*2.2,0,Math.sin(t*.8)*p.s*2.2)});
+ R.render(scene,cam)}catch(e){}
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame)}
+if(window.THREE){try{init3d()}catch(e){$('#note').textContent='3D-Ansicht konnte nicht starten: '+e.message}}else $('#note').textContent='3D-Bibliothek nicht geladen.';
+/* ---- Stimme ---- */
+function pickVoice(){const v=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().startsWith('de'));return v.find(x=>/anna|petra|markus|google/i.test(x.name))||v[0]}
+function speak(t,done){if(!('speechSynthesis' in window)){setState('idle');done&&done();return}
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[*_#`]/g,''));u.lang='de-DE';const v=pickVoice();if(v)u.voice=v;u.rate=1.02;
+ u.onstart=()=>setState('speak');u.onend=u.onerror=()=>{setState('idle');done&&done()};speechSynthesis.speak(u)}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,conv=false;
+function listen(){if(!SR){$('#note').textContent='Spracheingabe wird hier nicht unterstützt. Bitte tippen.';return}
+ try{rec=new SR();rec.lang='de-DE';rec.interimResults=false;rec.onstart=()=>setState('listen');
+  rec.onresult=e=>{const t=e.results[0][0].transcript;if(t)ask(t)};
+  rec.onerror=e=>{conv=false;setState('idle');if(e.error==='not-allowed'||e.error==='service-not-allowed')$('#note').textContent='Mikrofon blockiert. In den iPad-Einstellungen für Safari erlauben oder tippen.'};
+  rec.onend=()=>{if(st==='listen')setState('idle');if(!conv&&!busy)startWake()};rec.start()}catch(e){setState('idle')}}
+$('#mic').onclick=()=>{if(st==='listen'){conv=false;try{rec.stop()}catch(e){}setState('idle');return}speechSynthesis.cancel();stopWake();conv=true;listen()};
+let wake=false,wr=null,busy=false,aw=0;
+const WK=/\b(?:inonie|[iey] ?noni|inone|ino ni|ina ?noni)\b[\s,.!?]*/i;
+function stopWake(){if(wr){wr.onend=null;try{wr.stop()}catch(e){}wr=null}}
+function startWake(){if(!SR||!wake||busy)return;stopWake();
+ try{wr=new SR();wr.lang='de-DE';wr.continuous=true;wr.interimResults=false;
+ wr.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){if(!e.results[i].isFinal)continue;
+  const t=e.results[i][0].transcript.trim();const m=t.match(WK);
+  if(m){const rest=t.replace(WK,'').trim();if(rest.length>2){aw=0;stopWake();ask(rest)}else{aw=Date.now();setState('listen');setTimeout(()=>{if(aw&&st==='listen'){aw=0;setState('idle')}},10000)}}
+  else if(aw&&Date.now()-aw<10000){aw=0;stopWake();ask(t)}}};
+ wr.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){wake=false;$('#wk').classList.remove('on');$('#note').textContent='Mikrofon blockiert. Bitte erlauben oder tippen.'}};
+ wr.onend=()=>{if(wake&&!busy)setTimeout(startWake,400)};wr.start();setState('idle')}catch(e){}}
+$('#wk').onclick=()=>{wake=!wake;$('#wk').classList.toggle('on',wake);$('#note').textContent=wake?'Aktivierungswort an: Sag „Inoni“, dann deine Frage.':'';if(wake){conv=false;startWake()}else{stopWake();setState('idle')}};
+$('#send').onclick=()=>{const t=$('#txt').value.trim();if(t){$('#txt').value='';conv=false;ask(t)}};
+$('#txt').onkeydown=e=>{if(e.key==='Enter')$('#send').click()};
+/* ---- Agent ---- */
+const WORKER='HIER_WORKER_URL_EINTRAGEN',TOKEN='HIER_GEHEIMES_PASSWORT';
+const HDR={'Content-Type':'application/json','x-inoni-token':TOKEN};let MEM='';
+async function loadMem(){try{const r=await fetch(WORKER+'/memory',{method:'POST',headers:HDR,body:JSON.stringify({action:'get'})});const j=await r.json();MEM=(j.items||[]).join('; ')}catch(e){}}
+async function geminiSample(msgs,o){
+ const decl=o.tools.map(t=>{const p=t.inputSchema,d={name:t.name,description:t.description};if(p&&Object.keys(p.properties||{}).length)d.parameters=JSON.parse(JSON.stringify(p).replace(/"type":"(\w+)"/g,(m,x)=>'"type":"'+x.toUpperCase()+'"'));return d});
+ const contents=msgs.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+ for(let n=0;n<5;n++){
+  const r=await fetch(WORKER+'/chat',{method:'POST',headers:HDR,body:JSON.stringify({contents,tools:[{functionDeclarations:decl}]})});
+  if(r.status===429)throw{code:'rate_limited'};if(!r.ok)throw{code:'err'};
+  const j=await r.json(),c=j.candidates&&j.candidates[0]&&j.candidates[0].content;if(!c)throw{code:'err'};
+  const calls=(c.parts||[]).filter(p=>p.functionCall);
+  if(!calls.length)return{text:(c.parts||[]).map(p=>p.text||'').join('')};
+  contents.push(c);const res=[];
+  for(const p of calls){const t=o.tools.find(x=>x.name===p.functionCall.name);let out;try{out=t?await t.execute(p.functionCall.args||{}):'unbekannt'}catch(e){out='Fehler'}res.push({functionResponse:{name:p.functionCall.name,response:{result:String(out)}}})}
+  contents.push({role:'user',parts:res})}
+ return{text:'Das hat zu lange gedauert.'}}
+let sample=null,hist=[];
+const SYS='Du bist Inoni, ein eigenständiger deutschsprachiger Sprachassistent, ähnlich wie Jarvis: ruhig, kompetent, leicht trocken-humorvoll. Antworte immer auf Deutsch, kurz (maximal 2-3 Sätze), ohne Markdown und Listen, da deine Antwort laut vorgelesen wird. Nutze deine Werkzeuge selbstständig, wenn sie helfen (Uhrzeit, Notizen, Timer). Für aktuelle Fragen (Nachrichten, Wetter, Fakten) nutze das Werkzeug websuche und fasse das Ergebnis kurz zusammen. Wenn der Nutzer etwas Dauerhaftes über sich sagt (Name, Vorlieben, Familie, Gewohnheiten), speichere es mit dem Werkzeug merken. Mails und Kalender hast du noch nicht; sag das ehrlich, wenn danach gefragt wird.';
+const tools=[
+ {name:'websuche',description:'Sucht aktuelle Informationen im Internet',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query']},execute:async i=>{const r=await fetch(WORKER+'/search',{method:'POST',headers:HDR,body:JSON.stringify({query:i.query})});const j=await r.json();return j.result||'Keine Treffer'}},
+ {name:'merken',description:'Merkt sich dauerhaft einen Fakt über den Nutzer',inputSchema:{type:'object',properties:{text:{type:'string'}},required:['text']},execute:async i=>{await fetch(WORKER+'/memory',{method:'POST',headers:HDR,body:JSON.stringify({action:'add',text:i.text})});MEM+=(MEM?'; ':'')+i.text;return 'gemerkt'}},
+ {name:'zeit',description:'Aktuelles Datum und Uhrzeit des Nutzers',inputSchema:{type:'object',properties:{}},execute:async()=>new Date().toLocaleString('de-DE',{dateStyle:'full',timeStyle:'short'})},
+ {name:'notiz_speichern',description:'Speichert eine Notiz',inputSchema:{type:'object',properties:{text:{type:'string'}},required:['text']},execute:async i=>{notes.push({t:i.text,d:Date.now()});store.set('inoni_notes',notes);refreshHub();return 'gespeichert'}},
+ {name:'notizen_lesen',description:'Liest alle gespeicherten Notizen',inputSchema:{type:'object',properties:{}},execute:async()=>notes.length?notes.map(n=>n.t).join(' | '):'keine Notizen'},
+ {name:'timer_starten',description:'Startet einen Timer in Sekunden',inputSchema:{type:'object',properties:{sekunden:{type:'number'},name:{type:'string'}},required:['sekunden']},execute:async i=>{const s=Math.min(Math.max(1,i.sekunden),86400);timers++;refreshHub();setTimeout(()=>{timers--;refreshHub();addMsg('in','Timer'+(i.name?' "'+i.name+'"':'')+' ist abgelaufen.');speak('Dein Timer'+(i.name?' '+i.name:'')+' ist abgelaufen.')},s*1000);return 'Timer läuft '+s+' Sekunden'}}];
+async function ask(text){busy=true;stopWake();addMsg('du',text);setState('think');hist.push({role:'user',content:text});
+ if(!sample){const m='Die KI-Verbindung ist hier nicht verfügbar. Öffne Inoni über den Link in der Claude-App.';addMsg('in',m);setState('idle');busy=false;return}
+ let msgs=hist.slice(-8);while(msgs.length&&msgs[0].role!=='user')msgs.shift();
+ msgs=msgs.map((m,i)=>i===0?{role:m.role,content:SYS+(MEM?'\nWas du über den Nutzer weißt: '+MEM:'')+'\n\n'+m.content}:m);
+ try{const r=await sample(msgs,{tools,cache:false,modelTier:'quick'});const a=(r.text||'').trim()||'Dazu fällt mir gerade nichts ein.';
+  hist.push({role:'assistant',content:a});addMsg('in',a);speak(a,()=>{busy=false;if(conv)listen();else startWake()})}
+ catch(e){const m=e&&e.code==='rate_limited'?'Kurze Pause bitte, ich bin gerade ausgelastet.':'Das hat leider nicht geklappt.';addMsg('in',m);setState('idle');conv=false;busy=false;startWake()}}
+sample=geminiSample;loadMem();
+speechSynthesis&&speechSynthesis.getVoices();
+</script></body></html>
