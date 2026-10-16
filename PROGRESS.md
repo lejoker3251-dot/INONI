@@ -2,29 +2,37 @@
 
 ## Arbeitsregeln
 - Nach jedem Schritt wird dieser Stand aktualisiert und im Claude-Projekt gespeichert.
-- Gibt es etwas zum Hochladen, kommt es als fertige ZIP-Datei (Name: jarvis-inoni-vX.Y.zip).
+- Es gibt immer eine ZIP mit allen Dateien (Name: jarvis-inoni-vX.Y.zip). Die Ordner liegen direkt im ZIP-Stamm, nach dem Entpacken kann alles in dieser Struktur hochgeladen werden.
 - Claude Code baut, die Claude API denkt im Betrieb.
+- Wir arbeiten im kostenlosen Claude-Tarif. Cloud-Sessions mit GitHub-Verknüpfung sind dort laut Doku nicht verfügbar, ich kann daher nicht direkt ins Repo schreiben.
 
-## v0.2, 15.10.2026
-Neu:
-- HUD heller und feiner: hellere Palette, Leuchteffekt, Wellenring um den Kern, Satelliten, Speichen, fein gezeichnete Skala.
-- Statusleiste mit Modell, Verbindung, Stimme, Gedächtnis.
-- Eingabezeile, Mikro-Taste und Vorlesen im HUD (Browser-Stimme als Übergang).
-- Verbindung zum Worker einstellbar (Adresse und Zugangsschlüssel, nur im Browser gespeichert). Ohne Worker läuft der Beispieldialog.
+## Stand 16.10.2026, nachts (v0.4)
+GitHub-Repo: lejoker3251-dot/INONI (öffentlich). Ich kann es lesen, aber nicht ändern.
 
-Nicht getestet:
-- Das HUD wurde nur auf Syntaxfehler geprüft, nicht im Browser angesehen.
-- Worker-Verbindung, Mikro und Vorlesen sind ungeprüft. Mikro und Vorlesen hängen vom Browser ab.
-- Der Worker ist nicht deployt, die API-Aufrufe sind ungeprüft.
+Cloudflare:
+- Konto steht, eingeloggt.
+- Ein Worker "inoni": liefert HUD (web/) und API (/api/*). Adresse: https://inoni.420joker-68b.workers.dev
+- Das HUD läuft dort schon live (Stand vor v0.4, vom Nutzer geprüft).
+- Entscheidung: kein zweites Projekt. Statt eines Workers "jarvis-inoni" wurde alles in "inoni" zusammengelegt.
 
-GitHub: In dieser Sitzung ist kein GitHub-Konto verbunden, ich kann nicht direkt pushen. Upload läuft über die ZIP.
+Umbau in v0.4 (muss noch ins Repo):
+- NEU: wrangler.toml im Hauptverzeichnis (name inoni, main worker/src/index.js, assets web, run_worker_first nur /api/*).
+- GEÄNDERT: worker/src/index.js (alles außerhalb /api/ geht an die Seite), web/index.html (erkennt die Adresse selbst, Demo läuft, bis der Schlüssel eingetragen ist), README.md, memory/10-Projekt-Jarvis-Inoni.md, PROGRESS.md.
+- ZU LÖSCHEN im Repo: worker/wrangler.toml (wird nicht mehr gebraucht).
+- Geprüft mit Beispielaufrufen: Seite wird ausgeliefert, /api/health ohne Schlüssel 401, mit Schlüssel 200, /api/brain liefert Text und ruft die Claude API mit dem Schlüssel auf, ungültiger Memory-Pfad 400, unbekannter API-Pfad 404. HUD-Skript auf Syntaxfehler geprüft.
+- Nicht geprüft: echter Deploy mit der neuen wrangler.toml, echte Claude-Antwort, Mikro und Vorlesen im Browser.
 
 Nächste Schritte:
-1. ZIP entpacken und auf GitHub hochladen, Web-App und Worker bei Cloudflare einrichten (siehe README).
-2. Worker mit /api/health und /api/brain prüfen, danach im HUD Adresse und Schlüssel eintragen.
-3. Stimme: Spracherkennung und Sprachausgabe über Cloudflare statt Browser, deutsche Stimme auswählen.
-4. Zustände aus dem echten Ablauf steuern statt aus der Demo.
+1. v0.4 ins Repo laden, worker/wrangler.toml löschen. Cloudflare baut automatisch neu.
+2. Build-Log prüfen, danach Secrets setzen: ACCESS_TOKEN und ANTHROPIC_API_KEY. GITHUB_TOKEN später.
+3. Im HUD den Zugangsschlüssel eintragen, "Speichern und testen", eine Nachricht an Jarvis schreiben.
+4. Stimme über Cloudflare statt Browser, deutsche Stimme auswählen.
+
+## v0.3, 16.10.2026
+- Inhalt wie v0.2, dazu wrangler.toml mit richtigem Repo und aktuelles PROGRESS.md. ZIP ohne Oberordner.
+
+## v0.2, 15.10.2026
+- HUD heller und feiner, Statusleiste, Eingabezeile, Mikro-Taste, Vorlesen (Browser-Stimme als Übergang), Verbindung zum Worker einstellbar.
 
 ## v0.1, 15.10.2026
-- Architektur festgelegt: HUD als statische Web-App, Worker mit Claude API, Gedächtnis als Markdown in GitHub.
-- HUD-Entwurf, Worker-Gerüst (brain, memory, health, geschützt per ACCESS_TOKEN), Start-Gedächtnis.
+- Architektur festgelegt, HUD-Entwurf, Worker-Gerüst, Start-Gedächtnis.

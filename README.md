@@ -6,32 +6,34 @@ Ein Sprachassistent im Iron-Man-Stil. Alles läuft gehostet, bedient wird er vom
 iPad (HUD als Home-Bildschirm-App)
    |  Text, Sprache, Zustand
    v
-Cloudflare Worker  --->  Claude API (denkt)
+Cloudflare Worker "inoni"  (liefert HUD und API aus)  --->  Claude API (denkt)
    |
    v
 GitHub-Repo, Ordner memory/  (Gedächtnis, Markdown)
 ```
 
+Ein einziger Worker mit dem Namen `inoni` liefert die Seite (Ordner `web`) und beantwortet Aufrufe unter `/api/` (Ordner `worker`). Die Konfiguration liegt in `wrangler.toml` im Hauptverzeichnis.
+
 | Baustein | Ordner | Stand |
 |---|---|---|
-| Motor | worker/ | Gerüst, ungetestet |
+| Motor | worker/ | Gerüst, im Test mit Beispielaufrufen geprüft, noch nicht live |
 | Gedächtnis | memory/ | Startdateien |
 | Stimme | im HUD | Übergang: Browser-Stimme und Browser-Mikro, später Cloudflare |
-| Gesicht | web/ | Entwurf v0.2 |
+| Gesicht | web/ | live auf workers.dev |
 
-## Einrichtung (vom iPad, nicht von mir ausgeführt)
+## Einrichtung bei Cloudflare
 
-1. **GitHub:** Neues Repo anlegen. Die ZIP in der Dateien-App entpacken (GitHub entpackt ZIPs nicht selbst) und den Inhalt über "Add file > Upload files" hochladen. Lässt Safari auf dem iPad keine Ordner zu, legst du jede Datei über "Add file > Create new file" an und schreibst den Pfad in den Namen, zum Beispiel `web/index.html`, dann den Inhalt einfügen. In `worker/wrangler.toml` den Wert `MEMORY_REPO` auf `DEIN-NAME/REPO-NAME` ändern.
-2. **HUD:** In Cloudflare unter Workers & Pages ein Projekt aus dem GitHub-Repo erstellen, als Stammordner `web` angeben. Danach die Seite in Safari öffnen und "Zum Home-Bildschirm" wählen.
-3. **Worker:** Zweites Projekt aus demselben Repo, Stammordner `worker`. Unter Einstellungen die Secrets `ACCESS_TOKEN`, `ANTHROPIC_API_KEY` und `GITHUB_TOKEN` setzen.
-   - `ACCESS_TOKEN`: ein langer Zufallswert, den du dir ausdenkst.
+1. Workers & Pages: Projekt `inoni` aus dem GitHub-Repo, Stammordner leer lassen (Hauptverzeichnis), Deploy-Befehl `npx wrangler deploy`.
+2. Unter Settings > Variables and Secrets (Laufzeit, nicht Build) zwei Secrets anlegen:
+   - `ACCESS_TOKEN`: ein langer Zufallswert, den du dir ausdenkst. Schützt alle Endpunkte.
    - `ANTHROPIC_API_KEY`: aus der Claude Console, wird nach Nutzung abgerechnet.
-   - `GITHUB_TOKEN`: fein abgestuftes Token, nur Zugriff auf dieses Repo, Berechtigung Contents.
-4. **Verbinden:** Im HUD unter "Verbindung zum Worker" Adresse und `ACCESS_TOKEN` eintragen und auf "Speichern und testen" tippen. Danach schreibst du Jarvis im Textfeld oder sprichst über die Mikro-Taste.
+3. Später für das Gedächtnis: `GITHUB_TOKEN`, fein abgestuftes Token nur für dieses Repo, Berechtigung Contents (Lesen und Schreiben).
+4. HUD öffnen, unter "Verbindung zum Worker" den `ACCESS_TOKEN` eintragen, auf "Speichern und testen" tippen. Die Adresse erkennt das HUD selbst.
 
 Der API-Schlüssel gehört nie in die Web-App, nur in die Secrets des Workers.
 
 ## Dateien
+- `wrangler.toml` Konfiguration des einen Workers
 - `web/index.html` das HUD, eine einzelne Datei ohne Build
 - `worker/src/index.js` Endpunkte `/api/brain`, `/api/memory`, `/api/health`
 - `memory/` Persona und Projektnotizen, werden von Jarvis gelesen
