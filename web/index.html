@@ -193,7 +193,7 @@
         <details id="connDetails">
           <summary>Verbindung zum Worker</summary>
           <form class="fields" id="connForm" autocomplete="off">
-            <label>Worker-Adresse<input type="url" id="urlInput" placeholder="https://jarvis-inoni.DEIN-NAME.workers.dev"></label>
+            <label>Worker-Adresse<input type="url" id="urlInput" placeholder="https://inoni.420joker-68b.workers.dev"></label>
             <label>Zugangsschlüssel<input type="password" id="tokenInput" placeholder="ACCESS_TOKEN aus den Worker-Secrets"></label>
             <button type="submit">Speichern und testen</button>
           </form>
@@ -459,7 +459,8 @@
   stateBtns.forEach(function (b) { b.addEventListener("click", function () { stopDemo(); setState(b.dataset.state); }); });
 
   /* Worker-Verbindung, Vorlesen, Mikrofon */
-  var cfg = { url: store("jarvis.url"), token: store("jarvis.token") };
+  var sameOrigin = /\.workers\.dev$/.test(location.hostname) ? location.origin : "";
+  var cfg = { url: store("jarvis.url") || sameOrigin, token: store("jarvis.token") };
   var connEl = document.getElementById("connState");
   var logTag = document.getElementById("logTag");
   var urlInput = document.getElementById("urlInput");
@@ -479,7 +480,7 @@
     logTag.textContent = kind === "ok" ? "Live mit Claude" : (kind === "set" ? "Worker eingetragen, noch nicht geprüft" : (kind === "bad" ? "Verbindung fehlgeschlagen" : "Beispieldialog, nicht live"));
   }
   urlInput.value = cfg.url; tokenInput.value = cfg.token;
-  setConn(cfg.url ? "set" : "none");
+  setConn(cfg.url && cfg.token ? "set" : "none");
 
   var voiceOn = true;
   var voiceBtn = document.getElementById("voiceBtn");
@@ -514,9 +515,9 @@
     var reply, answered = false;
     try {
       var url = cfg.url.replace(/\/+$/, "");
-      if (!url) {
+      if (!url || !cfg.token) {
         await sleep(700);
-        reply = "Noch kein Worker verbunden. Trage unten die Adresse und den Zugangsschlüssel ein.";
+        reply = "Noch nicht verbunden. Trage unten den Zugangsschlüssel ein.";
       } else {
         history.push({ role: "user", content: text });
         var res = await fetch(url + "/api/brain", {
@@ -595,7 +596,7 @@
 
   if (window.ResizeObserver) new ResizeObserver(resize).observe(cv); else window.addEventListener("resize", resize);
   resize();
-  if (reduced) { draw(); } else { requestAnimationFrame(frame); if (!cfg.url) setTimeout(startDemo, 1200); }
+  if (reduced) { draw(); } else { requestAnimationFrame(frame); if (!(cfg.url && cfg.token)) setTimeout(startDemo, 1200); }
 })();
 </script>
 </body>
