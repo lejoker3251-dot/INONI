@@ -1,5 +1,6 @@
 // Jarvis Inoni: Gehirn- und Gedächtnis-Endpunkte (Cloudflare Worker, ohne Build-Schritt).
-// Status: Gerüst, noch nicht deployt und nicht getestet.
+// Läuft zusammen mit dem HUD in einem Worker (siehe wrangler.toml im Hauptverzeichnis).
+// Status: Gerüst, noch nicht live getestet.
 //
 // Benötigte Secrets (Cloudflare: Settings > Variables and secrets):
 //   ACCESS_TOKEN       eigener langer Zufallswert, schützt alle Endpunkte
@@ -14,6 +15,10 @@ const FALLBACK_PERSONA =
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Alles außerhalb von /api/ ist das HUD (statische Dateien aus dem Ordner web).
+    if (!url.pathname.startsWith("/api/")) {
+      return env.ASSETS ? env.ASSETS.fetch(request) : new Response("not found", { status: 404 });
+    }
     const cors = {
       "access-control-allow-origin": env.ALLOWED_ORIGIN || "*",
       "access-control-allow-headers": "authorization, content-type",
