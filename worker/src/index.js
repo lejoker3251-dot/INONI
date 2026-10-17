@@ -1,15 +1,22 @@
 // Jarvis Inoni: Gehirn- und Gedächtnis-Endpunkte (Cloudflare Worker, ohne Build-Schritt).
 // Läuft zusammen mit dem HUD in einem Worker (siehe wrangler.toml im Hauptverzeichnis).
-// Status: Gerüst, noch nicht live getestet.
+// Status: im Test mit Beispielantworten geprüft, noch nicht live.
 //
-// Benötigte Secrets (Cloudflare: Settings > Variables and secrets):
-//   ACCESS_TOKEN       eigener langer Zufallswert, schützt alle Endpunkte
-//   ANTHROPIC_API_KEY  Schlüssel aus der Claude Console
-//   GITHUB_TOKEN       fein abgestuftes Token, nur Contents (Lesen/Schreiben) für das Gedächtnis-Repo
-// Variablen (wrangler.toml): MEMORY_REPO, CLAUDE_MODEL, ALLOWED_ORIGIN
+// Gehirn: Standard ist Cloudflare Workers AI (kostenloses Tageskontingent, Modell aus AI_MODEL).
+// Sobald das Secret ANTHROPIC_API_KEY gesetzt ist, antwortet stattdessen Claude (Modell aus CLAUDE_MODEL).
+//
+// Secrets (Cloudflare: Settings > Variables and secrets):
+//   ACCESS_TOKEN       Pflicht. Eigener langer Zufallswert, schützt alle Endpunkte.
+//   ANTHROPIC_API_KEY  Optional. Schaltet das Gehirn auf Claude um (kostet Guthaben bei Anthropic).
+//   GITHUB_TOKEN       Optional. Fein abgestuftes Token, nur Contents für das Gedächtnis-Repo.
+// Variablen (wrangler.toml): MEMORY_REPO, AI_MODEL, CLAUDE_MODEL, ALLOWED_ORIGIN
+// Binding (wrangler.toml): AI (Workers AI), ASSETS (das HUD)
+
+const DEFAULT_AI_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
 
 const FALLBACK_PERSONA =
-  "Du bist Jarvis, der persönliche Assistent. Antworte auf Deutsch, ruhig und präzise, " +
+  "Du bist Jarvis, der persönliche Assistent. Antworte immer auf Deutsch, ruhig und präzise, " +
   "in höchstens drei kurzen Sätzen. Deine Antworten werden vorgelesen: kein Markdown, keine Listen, keine Sonderzeichen.";
 
 export default {
@@ -29,7 +36,9 @@ export default {
     if (!authorized(request, env)) return json({ error: "unauthorized" }, 401, cors);
 
     try {
-      if (url.pathname === "/api/health") return json({ ok: true }, 200, cors);
+      if (url.pathname === "/api/health") {
+        return json({ ok: true, brain: brainName(env), model: brainModel(env) }, 200, cors);
+      }
       if (url.pathname === "/api/brain" && request.method === "POST") return await brain(request, env, cors);
       if (url.pathname === "/api/memory" && request.method === "GET") return await memoryRead(url, env, cors);
       if (url.pathname === "/api/memory" && request.method === "POST") return await memoryWrite(request, env, cors);
@@ -78,11 +87,32 @@ async function loadPersona(env) {
   return res.ok ? await res.text() : FALLBACK_PERSONA;
 }
 
+function brainName(env) {
+  return env.ANTHROPIC_API_KEY ? "claude" : "workers-ai";
+}
+
+function brainModel(env) {
+  return env.ANTHROPIC_API_KEY
+    ? env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL
+    : env.AI_MODEL || DEFAULT_AI_MODEL;
+}
+
 async function brain(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const messages = body && Array.isArray(body.messages) ? body.messages.slice(-20) : null;
-  if (!messages || !messages.length) return json({ error: "messages fehlt" }, 400, cors);
+  const raw = body && Array.isArray(body.messages) ? body.messages.slice(-12) : [];
+  const messages = raw
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+  if (!messages.length) return json({ error: "messages fehlt" }, 400, cors);
 
+  const system = await loadPersona(env);
+  return env.ANTHROPIC_API_KEY
+    ? await askClaude(env, system, messages, cors)
+    : await askWorkersAI(env, system, messages, cors);
+}
+
+async function askClaude(env, system, messages, cors) {
+  const model = brainModel(env);
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -90,17 +120,51 @@ async function brain(request, env, cors) {
       "x-api-key": env.ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({
-      model: env.CLAUDE_MODEL || "claude-sonnet-5-5",
-      max_tokens: 400,
-      system: await loadPersona(env),
-      messages,
-    }),
+    body: JSON.stringify({ model, max_tokens: 400, system, messages }),
   });
   if (!res.ok) return json({ error: "claude_api", status: res.status }, 502, cors);
   const data = await res.json();
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-  return json({ text }, 200, cors);
+  return json({ text, model }, 200, cors);
+}
+
+async function askWorkersAI(env, system, messages, cors) {
+  if (!env.AI) return json({ error: "ai_binding_fehlt" }, 500, cors);
+  const model = brainModel(env);
+  const input = { messages: [{ role: "system", content: system }, ...messages] };
+  // Gemma 4 nimmt max_completion_tokens, ältere Modelle (Llama, Qwen) max_tokens.
+  if (/gemma-4/.test(model)) input.max_completion_tokens = 500;
+  else input.max_tokens = 400;
+
+  let out;
+  try {
+    out = await env.AI.run(model, input);
+  } catch (err) {
+    return json({ error: "workers_ai", detail: String(err && err.message ? err.message : err) }, 502, cors);
+  }
+  const text = cleanText(extractText(out));
+  if (!text) return json({ error: "leere_antwort", model }, 502, cors);
+  return json({ text, model }, 200, cors);
+}
+
+// Workers AI liefert je nach Modell {response} (älter) oder {choices:[{message:{content}}]} (OpenAI-Form).
+function extractText(out) {
+  if (!out) return "";
+  if (typeof out === "string") return out;
+  const choice = out.choices && out.choices[0];
+  if (choice) {
+    const c = choice.message && choice.message.content;
+    if (typeof c === "string") return c;
+    if (Array.isArray(c)) return c.map((p) => (p && typeof p.text === "string" ? p.text : "")).join("");
+    if (typeof choice.text === "string") return choice.text;
+  }
+  if (typeof out.response === "string") return out.response;
+  return "";
+}
+
+// Manche Modelle schreiben ihre Überlegung in <think>-Tags, die nicht vorgelesen werden sollen.
+function cleanText(text) {
+  return String(text || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
 async function memoryRead(url, env, cors) {
