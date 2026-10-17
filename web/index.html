@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1a2a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-</head>
-<body>
-<title>Jarvis Inoni</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Inoni">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Inoni</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <style>
   /* Layout: Bühne mit Partikelring in der Mitte, links die vier Bausteine, rechts Gespräch, Latenzbudget und Verbindung.
@@ -103,11 +106,12 @@
   .chip.draft { color: var(--ice); }
   .chip.scaffold { color: var(--amber); }
   .chip.plan { color: var(--muted); }
+  .chip.new { color: var(--ice); background: rgba(var(--ice-rgb), 0.12); }
 
   .log { display: grid; gap: 12px; max-height: 320px; min-height: 180px; overflow-y: auto; align-content: start; }
   .msg { display: grid; gap: 2px; }
   .msg .who { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-  .msg.jarvis .who { color: var(--ice); }
+  .msg.inoni .who { color: var(--ice); }
   .msg p { margin: 0; max-width: 65ch; overflow-wrap: anywhere; }
   .msg p.typing::after { content: "\2590"; color: var(--ice); margin-left: 2px; }
   .msg.sys p { color: var(--muted); font-size: 0.85rem; }
@@ -136,27 +140,29 @@
 
   footer { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; border-top: 1px solid var(--line); padding-top: 12px; }
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header class="top">
-    <h1 class="brand">J.A.R.V.I.S. <span>Inoni</span></h1>
-    <div class="meta"><span id="clock">--:--:--</span> Ortszeit &middot; Entwurf v0.2</div>
+    <h1 class="brand">I.N.O.N.I. <span>Butler</span></h1>
+    <div class="meta"><span id="clock">--:--:--</span> Ortszeit &middot; v0.6</div>
   </header>
 
   <section class="telemetry" aria-label="Status">
     <div><small>Modell</small><b id="modelState">noch nicht verbunden</b></div>
     <div><small>Verbindung</small><b id="connState">Demo, kein Worker</b></div>
     <div><small>Stimme</small><b id="voiceState">Browser-Vorleser</b></div>
-    <div><small>Gedächtnis</small><b>2 Dateien im Repo</b></div>
+    <div><small>Gedächtnis</small><b id="memState">noch nicht verbunden</b></div>
   </section>
 
   <div class="grid">
-    <section class="col-stage" aria-label="Jarvis Bühne">
+    <section class="col-stage" aria-label="Inoni Bühne">
       <div class="stage">
         <canvas id="orb" aria-hidden="true"></canvas>
         <div class="core">
           <div class="state" id="stateName" aria-live="polite">BEREIT</div>
-          <div class="sub" id="stateSub">wartet auf &bdquo;Jarvis&ldquo;</div>
+          <div class="sub" id="stateSub">wartet auf &bdquo;Inoni&ldquo;</div>
         </div>
       </div>
       <div class="controls" role="group" aria-label="Zustand wählen">
@@ -166,7 +172,7 @@
         <button type="button" data-state="speaking" aria-pressed="false">Spricht</button>
         <button type="button" id="demoBtn" aria-pressed="false">Demo starten</button>
       </div>
-      <p class="hint">Ohne Worker läuft ein Beispieldialog. Mit eingetragenem Zugangsschlüssel antwortet Jarvis live.</p>
+      <p class="hint">Ohne Worker läuft ein Beispieldialog. Mit eingetragenem Zugangsschlüssel antwortet Inoni live.</p>
     </section>
 
     <aside class="col-right">
@@ -174,7 +180,7 @@
         <h2>Gespräch</h2>
         <div class="log" id="log"></div>
         <form class="compose" id="composeForm" autocomplete="off">
-          <input type="text" id="msgInput" placeholder="Nachricht an Jarvis" aria-label="Nachricht an Jarvis" enterkeyhint="send">
+          <input type="text" id="msgInput" placeholder="Nachricht an Inoni" aria-label="Nachricht an Inoni" enterkeyhint="send">
           <button type="submit" id="sendBtn">Senden</button>
           <button type="button" id="micBtn" aria-label="Sprechen">Mikro</button>
         </form>
@@ -207,14 +213,15 @@
         <h2>Bausteine</h2>
         <div class="pillar"><b>Motor</b><span class="chip scaffold">Gerüst</span><small>Workers AI im Worker, Claude optional</small></div>
         <div class="pillar"><b>Gedächtnis</b><span class="chip scaffold">Gerüst</span><small>Markdown in GitHub, Obsidian als Ansicht</small></div>
-        <div class="pillar"><b>Stimme</b><span class="chip plan">Übergang</span><small>Vorerst Browser-Stimme, später Cloudflare</small></div>
+        <div class="pillar"><b>Stimme</b><span class="chip new">Neu</span><small>Fish Audio über den Worker, Browser-Stimme als Rückfall</small></div>
         <div class="pillar"><b>Gesicht</b><span class="chip draft">Entwurf</span><small>Dieses HUD als Home-Bildschirm-App</small></div>
       </section>
     </aside>
   </div>
 
-  <footer>Jarvis Inoni &middot; Zustand: <span id="footState">bereit</span></footer>
+  <footer>Inoni &middot; Zustand: <span id="footState">bereit</span></footer>
 </div>
+<audio id="player" playsinline preload="auto"></audio>
 
 <script>
 (function () {
@@ -228,9 +235,9 @@
     speaking:  { rot: 0.3,  amp: 0.16, lvl: 0.8,  col: [215, 250, 255], spin: 0.6 }
   };
   var LABEL = {
-    idle:      ["BEREIT", "wartet auf „Jarvis“", "bereit"],
+    idle:      ["BEREIT", "wartet auf „Inoni“", "bereit"],
     listening: ["HÖRT ZU", "Spracherkennung aktiv", "hört zu"],
-    thinking:  ["DENKT", "Jarvis formuliert die Antwort", "denkt"],
+    thinking:  ["DENKT", "Inoni formuliert die Antwort", "denkt"],
     speaking:  ["SPRICHT", "Sprachausgabe läuft", "spricht"]
   };
 
@@ -404,7 +411,7 @@
     var m = document.createElement("div");
     m.className = "msg " + who;
     var w = document.createElement("span"); w.className = "who";
-    w.textContent = who === "du" ? "Du" : (who === "sys" ? "System" : "Jarvis");
+    w.textContent = who === "du" ? "Du" : (who === "sys" ? "System" : "Inoni");
     var p = document.createElement("p"); p.textContent = text || "";
     m.appendChild(w); m.appendChild(p);
     log.appendChild(m);
@@ -414,14 +421,14 @@
   }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  var Q = ["Jarvis, was steht heute an?", "Was weißt du noch über unser Projekt?", "Lies mir die letzte Notiz vor."];
+  var Q = ["Inoni, was steht heute an?", "Was weißt du noch über unser Projekt?", "Lies mir die letzte Notiz vor."];
   var A = [
     "Guten Abend. Drei Punkte: HUD-Entwurf prüfen, Schlüssel im Worker setzen, Gedächtnis-Repo anlegen.",
     "Der Motor ist ein kostenloses Cloudflare-Modell, später lässt er sich auf Claude umstellen. Das Gedächtnis liegt als Markdown auf GitHub.",
     "Die letzte Notiz lautet: Stimme zuerst über Cloudflare testen, dann ans HUD anbinden."
   ];
   addMsg("du", Q[0]);
-  addMsg("jarvis", A[0]);
+  addMsg("inoni", A[0]);
 
   var runId = 0;
   var demoBtn = document.getElementById("demoBtn");
@@ -446,7 +453,7 @@
       await typeInto(addMsg("du", ""), Q[i % Q.length], id); if (id !== runId) return;
       setState("thinking"); await sleep(1700); if (id !== runId) return;
       setState("speaking");
-      await typeInto(addMsg("jarvis", ""), A[i % A.length], id); if (id !== runId) return;
+      await typeInto(addMsg("inoni", ""), A[i % A.length], id); if (id !== runId) return;
       await sleep(900); if (id !== runId) return;
       setState("idle"); await sleep(2400);
       i++;
@@ -460,7 +467,10 @@
 
   /* Worker-Verbindung, Vorlesen, Mikrofon */
   var sameOrigin = /\.workers\.dev$/.test(location.hostname) ? location.origin : "";
-  var cfg = { url: store("jarvis.url") || sameOrigin, token: store("jarvis.token") };
+  var cfg = {
+    url: store("inoni.url") || store("jarvis.url") || sameOrigin,
+    token: store("inoni.token") || store("jarvis.token")
+  };
   var connEl = document.getElementById("connState");
   var logTag = document.getElementById("logTag");
   var urlInput = document.getElementById("urlInput");
@@ -483,26 +493,79 @@
   setConn(cfg.url && cfg.token ? "set" : "none");
 
   var voiceOn = true;
+  var voiceKind = "browser"; // "fish", sobald der Worker es meldet
   var voiceBtn = document.getElementById("voiceBtn");
   var voiceState = document.getElementById("voiceState");
+  var player = document.getElementById("player");
   var canSpeak = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
-  if (!canSpeak) { voiceBtn.hidden = true; voiceState.textContent = "kein Vorleser verfügbar"; }
+  var speechToken = 0;
+  var SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+  function setVoiceLabel() {
+    if (voiceKind === "fish") voiceState.textContent = "Fish Audio";
+    else voiceState.textContent = canSpeak ? "Browser-Vorleser" : "kein Vorleser verfügbar";
+  }
+  setVoiceLabel();
+  if (!canSpeak && voiceKind !== "fish") voiceBtn.hidden = true;
+
+  // iOS erlaubt Audio nur nach einer Berührung. Beim Senden und beim Mikro-Tipp wird der Player kurz freigeschaltet.
+  function unlockAudio() {
+    try { player.src = SILENCE; var pr = player.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) { /* optional */ }
+  }
+  function stopSpeaking() {
+    speechToken++;
+    try { player.pause(); } catch (e) { /* optional */ }
+    if (canSpeak) { try { window.speechSynthesis.cancel(); } catch (e) { /* optional */ } }
+  }
   voiceBtn.addEventListener("click", function () {
     voiceOn = !voiceOn;
     voiceBtn.setAttribute("aria-pressed", String(voiceOn));
     voiceBtn.textContent = voiceOn ? "Vorlesen an" : "Vorlesen aus";
-    if (!voiceOn && canSpeak) window.speechSynthesis.cancel();
+    if (!voiceOn) stopSpeaking();
   });
-  function speak(text) {
-    if (!canSpeak || !voiceOn) return;
-    try {
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      u.lang = "de-DE";
-      var voices = window.speechSynthesis.getVoices() || [];
-      for (var i = 0; i < voices.length; i++) { if (/^de/i.test(voices[i].lang)) { u.voice = voices[i]; break; } }
-      window.speechSynthesis.speak(u);
-    } catch (e) { /* Vorlesen ist optional */ }
+
+  function speakBrowser(text, token) {
+    return new Promise(function (resolve) {
+      if (!canSpeak) { resolve(); return; }
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = "de-DE";
+        var voices = window.speechSynthesis.getVoices() || [];
+        for (var i = 0; i < voices.length; i++) { if (/^de/i.test(voices[i].lang)) { u.voice = voices[i]; break; } }
+        u.onend = u.onerror = function () { resolve(); };
+        window.speechSynthesis.speak(u);
+        setTimeout(resolve, 60000);
+      } catch (e) { resolve(); }
+    });
+  }
+  async function speakFish(text, token) {
+    var res = await fetch(cfg.url.replace(/\/+$/, "") + "/api/speak", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + cfg.token },
+      body: JSON.stringify({ text: text })
+    });
+    if (!res.ok) throw new Error("speak " + res.status);
+    var blob = await res.blob();
+    if (token !== speechToken) return;
+    var src = URL.createObjectURL(blob);
+    await new Promise(function (resolve, reject) {
+      player.onended = function () { URL.revokeObjectURL(src); resolve(); };
+      player.onerror = function () { URL.revokeObjectURL(src); reject(new Error("audio")); };
+      player.src = src;
+      var pr = player.play();
+      if (pr && pr.catch) pr.catch(reject);
+    });
+  }
+  // Gibt ein Versprechen zurück, das endet, wenn das Vorlesen fertig ist.
+  async function speak(text) {
+    if (!voiceOn) return;
+    var token = ++speechToken;
+    if (voiceKind === "fish" && cfg.url && cfg.token) {
+      try { await speakFish(text, token); return; }
+      catch (e) { voiceState.textContent = "Fish gestört, Browser-Stimme"; }
+    }
+    if (token === speechToken) await speakBrowser(text, token);
   }
 
   async function send(text) {
@@ -510,6 +573,7 @@
     if (!text || busy) return;
     busy = true;
     stopDemo();
+    unlockAudio();
     addMsg("du", text);
     setState("thinking");
     var reply, answered = false;
@@ -542,8 +606,9 @@
       setConn("bad");
     }
     setState("speaking");
-    speak(reply);
-    await typeInto(addMsg("jarvis", ""), reply, runId);
+    var spoken = speak(reply);
+    await typeInto(addMsg("inoni", ""), reply, runId);
+    await spoken;
     setState("idle");
     busy = false;
   }
@@ -560,8 +625,10 @@
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { micBtn.hidden = true; }
   micBtn.addEventListener("click", function () {
-    if (!SR || busy) return;
+    if (busy) { stopSpeaking(); return; }
+    if (!SR) return;
     stopDemo();
+    unlockAudio();
     var rec;
     try {
       rec = new SR();
@@ -583,8 +650,8 @@
     ev.preventDefault();
     cfg.url = urlInput.value.trim();
     cfg.token = tokenInput.value.trim();
-    store("jarvis.url", cfg.url);
-    store("jarvis.token", cfg.token);
+    store("inoni.url", cfg.url);
+    store("inoni.token", cfg.token);
     history = [];
     if (!cfg.url) { setConn("none"); return; }
     setConn("set");
@@ -598,6 +665,11 @@
       if (!res.ok) { setConn("bad"); return; }
       var d = await res.json().catch(function () { return {}; });
       if (d.model) modelEl.textContent = d.model.replace(/^@cf\//, "");
+      voiceKind = d.voice === "fish" ? "fish" : "browser";
+      setVoiceLabel();
+      if (voiceKind === "fish") voiceBtn.hidden = false;
+      var memEl = document.getElementById("memState");
+      if (memEl) memEl.textContent = d.memory === "aktiv" ? "Repo aktiv (lesen und schreiben)" : "Repo, nur Startdateien";
       setConn("ok");
     } catch (e) { setConn("bad"); }
   }
