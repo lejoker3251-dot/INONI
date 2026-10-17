@@ -1,10 +1,10 @@
 # Projekt Jarvis Inoni
 
-Stand: 16.10.2026
+Stand: 17.10.2026
 
 ## Entscheidungen
 - Alles läuft gehostet, kein eigener Rechner. Gearbeitet wird vom iPad aus mit GitHub.
-- Die Stimme denkt mit Claude (Claude API), nicht mit einem anderen Modell.
+- Kostenlos starten: Das Gehirn ist zunächst ein Modell von Cloudflare Workers AI (Gemma 4). Claude über die Claude API ist ein späterer Wechsel, der nur das Secret ANTHROPIC_API_KEY braucht.
 - Claude Code baut das Projekt, läuft aber nicht im Betrieb mit.
 - Gedächtnis sind Markdown-Dateien im Ordner memory/ dieses Repos. Obsidian auf dem iPad ist nur die Ansicht.
 - Hören und Sprechen laufen über gehostete Dienste (Cloudflare), nicht lokal.
@@ -12,5 +12,6 @@ Stand: 16.10.2026
 
 ## Offen
 - Deutsche Stimme auswählen und anhören.
-- Secrets im Worker setzen (ACCESS_TOKEN, ANTHROPIC_API_KEY), später GITHUB_TOKEN.
+- Prüfen, wie gut das kostenlose Modell Deutsch spricht, gegebenenfalls Modell wechseln.
 - Sprachanbindung an das HUD über Cloudflare.
+- Später GITHUB_TOKEN für das Gedächtnis.
