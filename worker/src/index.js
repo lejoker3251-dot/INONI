@@ -1,23 +1,33 @@
-// Jarvis Inoni: Gehirn- und Gedächtnis-Endpunkte (Cloudflare Worker, ohne Build-Schritt).
+// Inoni: Gehirn-, Stimm- und Gedächtnis-Endpunkte (Cloudflare Worker, ohne Build-Schritt).
 // Läuft zusammen mit dem HUD in einem Worker (siehe wrangler.toml im Hauptverzeichnis).
-// Status: im Test mit Beispielantworten geprüft, noch nicht live.
 //
 // Gehirn: Standard ist Cloudflare Workers AI (kostenloses Tageskontingent, Modell aus AI_MODEL).
 // Sobald das Secret ANTHROPIC_API_KEY gesetzt ist, antwortet stattdessen Claude (Modell aus CLAUDE_MODEL).
+// Stimme: Sobald das Secret FISH_API_KEY gesetzt ist, liefert /api/speak Sprache von Fish Audio.
+// Ohne Schlüssel liest das HUD mit der Browser-Stimme vor.
 //
 // Secrets (Cloudflare: Settings > Variables and secrets):
 //   ACCESS_TOKEN       Pflicht. Eigener langer Zufallswert, schützt alle Endpunkte.
+//   FISH_API_KEY       Optional. Schaltet die Stimme auf Fish Audio um.
 //   ANTHROPIC_API_KEY  Optional. Schaltet das Gehirn auf Claude um (kostet Guthaben bei Anthropic).
 //   GITHUB_TOKEN       Optional. Fein abgestuftes Token, nur Contents für das Gedächtnis-Repo.
-// Variablen (wrangler.toml): MEMORY_REPO, AI_MODEL, CLAUDE_MODEL, ALLOWED_ORIGIN
+// Variablen (wrangler.toml): MEMORY_REPO, AI_MODEL, CLAUDE_MODEL, FISH_MODEL, FISH_VOICE_ID, ALLOWED_ORIGIN
 // Binding (wrangler.toml): AI (Workers AI), ASSETS (das HUD)
 
 const DEFAULT_AI_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
+const DEFAULT_FISH_MODEL = "s2.1-pro-free";
+
+const PERSONA_PATH = "memory/00-Inoni-Persona.md";
+const PERSONA_TTL_MS = 5 * 60 * 1000;
+const MAX_SPEAK_CHARS = 1000;
 
 const FALLBACK_PERSONA =
-  "Du bist Jarvis, der persönliche Assistent. Antworte immer auf Deutsch, ruhig und präzise, " +
-  "in höchstens drei kurzen Sätzen. Deine Antworten werden vorgelesen: kein Markdown, keine Listen, keine Sonderzeichen.";
+  "Du bist Inoni, der persönliche KI-Butler. Du wirst mit Inoni angesprochen. " +
+  "Antworte immer auf Deutsch, ruhig und präzise, in höchstens drei kurzen Sätzen. " +
+  "Deine Antworten werden vorgelesen: kein Markdown, keine Listen, keine Sonderzeichen.";
+
+let personaCache = { text: "", at: 0 };
 
 export default {
   async fetch(request, env) {
@@ -37,9 +47,20 @@ export default {
 
     try {
       if (url.pathname === "/api/health") {
-        return json({ ok: true, brain: brainName(env), model: brainModel(env) }, 200, cors);
+        return json(
+          {
+            ok: true,
+            brain: brainName(env),
+            model: brainModel(env),
+            voice: env.FISH_API_KEY ? "fish" : "browser",
+            memory: env.GITHUB_TOKEN ? "aktiv" : "aus",
+          },
+          200,
+          cors
+        );
       }
       if (url.pathname === "/api/brain" && request.method === "POST") return await brain(request, env, cors);
+      if (url.pathname === "/api/speak" && request.method === "POST") return await speak(request, env, cors);
       if (url.pathname === "/api/memory" && request.method === "GET") return await memoryRead(url, env, cors);
       if (url.pathname === "/api/memory" && request.method === "POST") return await memoryWrite(request, env, cors);
     } catch (err) {
@@ -70,21 +91,32 @@ function safeMemoryPath(path) {
 }
 
 function ghHeaders(env, accept) {
-  return {
-    authorization: `Bearer ${env.GITHUB_TOKEN}`,
-    accept,
-    "user-agent": "jarvis-inoni",
-    "x-github-api-version": "2022-11-28",
-  };
+  const h = { accept, "user-agent": "inoni", "x-github-api-version": "2022-11-28" };
+  if (env.GITHUB_TOKEN) h.authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  return h;
 }
 
+// Die Persona kommt aus dem Repo (öffentlich lesbar, mit Token auch bei privatem Repo).
+// Fünf Minuten im Speicher gehalten, damit nicht jede Antwort auf GitHub warten muss.
 async function loadPersona(env) {
-  if (!env.GITHUB_TOKEN || !env.MEMORY_REPO) return FALLBACK_PERSONA;
-  const res = await fetch(
-    `https://api.github.com/repos/${env.MEMORY_REPO}/contents/memory/00-Jarvis-Persona.md`,
-    { headers: ghHeaders(env, "application/vnd.github.raw+json") }
-  );
-  return res.ok ? await res.text() : FALLBACK_PERSONA;
+  if (!env.MEMORY_REPO) return FALLBACK_PERSONA;
+  const now = Date.now();
+  if (personaCache.text && now - personaCache.at < PERSONA_TTL_MS) return personaCache.text;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${env.MEMORY_REPO}/contents/${PERSONA_PATH}`, {
+      headers: ghHeaders(env, "application/vnd.github.raw+json"),
+    });
+    if (res.ok) {
+      const text = (await res.text()).trim();
+      if (text) {
+        personaCache = { text, at: now };
+        return text;
+      }
+    }
+  } catch (e) {
+    /* Netzwerkfehler: alte Persona oder Notfalltext */
+  }
+  return personaCache.text || FALLBACK_PERSONA;
 }
 
 function brainName(env) {
@@ -97,12 +129,24 @@ function brainModel(env) {
     : env.AI_MODEL || DEFAULT_AI_MODEL;
 }
 
+// Nur user/assistant-Texte, höchstens die letzten 12, und der Verlauf beginnt immer mit "user"
+// (die Claude-API verlangt das). Direkt aufeinanderfolgende gleiche Rollen werden zusammengelegt.
+function cleanMessages(list) {
+  const out = [];
+  for (const m of (Array.isArray(list) ? list : []).slice(-12)) {
+    if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string") continue;
+    const content = m.content.slice(0, 4000);
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.content += "\n" + content;
+    else out.push({ role: m.role, content });
+  }
+  while (out.length && out[0].role !== "user") out.shift();
+  return out;
+}
+
 async function brain(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const raw = body && Array.isArray(body.messages) ? body.messages.slice(-12) : [];
-  const messages = raw
-    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+  const messages = cleanMessages(body && body.messages);
   if (!messages.length) return json({ error: "messages fehlt" }, 400, cors);
 
   const system = await loadPersona(env);
@@ -132,8 +176,10 @@ async function askWorkersAI(env, system, messages, cors) {
   if (!env.AI) return json({ error: "ai_binding_fehlt" }, 500, cors);
   const model = brainModel(env);
   const input = { messages: [{ role: "system", content: system }, ...messages] };
-  // Gemma 4 nimmt max_completion_tokens, ältere Modelle (Llama, Qwen) max_tokens.
-  if (/gemma-4/.test(model)) input.max_completion_tokens = 500;
+  // Gemma 4 nimmt max_completion_tokens und denkt standardmäßig vor der Antwort.
+  // Das Budget ist deshalb großzügig, sonst bleibt nach dem Denken nichts für die Antwort übrig.
+  // Ältere Modelle (Llama, Qwen) nehmen max_tokens.
+  if (/gemma-4/.test(model)) input.max_completion_tokens = 1500;
   else input.max_tokens = 400;
 
   let out;
@@ -143,7 +189,10 @@ async function askWorkersAI(env, system, messages, cors) {
     return json({ error: "workers_ai", detail: String(err && err.message ? err.message : err) }, 502, cors);
   }
   const text = cleanText(extractText(out));
-  if (!text) return json({ error: "leere_antwort", model }, 502, cors);
+  if (!text) {
+    const cut = out && out.choices && out.choices[0] && out.choices[0].finish_reason === "length";
+    return json({ error: cut ? "antwort_abgeschnitten" : "leere_antwort", model }, 502, cors);
+  }
   return json({ text, model }, 200, cors);
 }
 
@@ -167,9 +216,44 @@ function cleanText(text) {
   return String(text || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
+// Stimme: Text rein, MP3 raus. Der Fish-Schlüssel bleibt im Worker.
+async function speak(request, env, cors) {
+  if (!env.FISH_API_KEY) return json({ error: "stimme_nicht_konfiguriert" }, 501, cors);
+  const body = await request.json().catch(() => null);
+  const text = body && typeof body.text === "string" ? body.text.trim().slice(0, MAX_SPEAK_CHARS) : "";
+  if (!text) return json({ error: "text fehlt" }, 400, cors);
+
+  const payload = { text, format: "mp3" };
+  if (env.FISH_VOICE_ID) payload.reference_id = env.FISH_VOICE_ID;
+
+  let res;
+  try {
+    res = await fetch("https://api.fish.audio/v1/tts", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.FISH_API_KEY}`,
+        "content-type": "application/json",
+        model: env.FISH_MODEL || DEFAULT_FISH_MODEL,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return json({ error: "fish_netz", detail: String(err && err.message ? err.message : err) }, 502, cors);
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).slice(0, 200);
+    return json({ error: "fish_api", status: res.status, detail }, 502, cors);
+  }
+  return new Response(res.body, {
+    status: 200,
+    headers: { "content-type": res.headers.get("content-type") || "audio/mpeg", "cache-control": "no-store", ...cors },
+  });
+}
+
 async function memoryRead(url, env, cors) {
   const path = url.searchParams.get("path");
   if (!safeMemoryPath(path)) return json({ error: "ungültiger Pfad" }, 400, cors);
+  if (!env.GITHUB_TOKEN) return json({ error: "github_token_fehlt" }, 501, cors);
   const res = await fetch(`https://api.github.com/repos/${env.MEMORY_REPO}/contents/${path}`, {
     headers: ghHeaders(env, "application/vnd.github.raw+json"),
   });
@@ -189,6 +273,7 @@ async function memoryWrite(request, env, cors) {
   if (!body || !safeMemoryPath(body.path) || typeof body.content !== "string") {
     return json({ error: "path und content erforderlich" }, 400, cors);
   }
+  if (!env.GITHUB_TOKEN) return json({ error: "github_token_fehlt" }, 501, cors);
   const api = `https://api.github.com/repos/${env.MEMORY_REPO}/contents/${body.path}`;
   const meta = await fetch(api, { headers: ghHeaders(env, "application/vnd.github+json") });
   const sha = meta.ok ? (await meta.json()).sha : undefined;
@@ -196,11 +281,12 @@ async function memoryWrite(request, env, cors) {
     method: "PUT",
     headers: { ...ghHeaders(env, "application/vnd.github+json"), "content-type": "application/json" },
     body: JSON.stringify({
-      message: body.message || `Jarvis: ${body.path} aktualisiert`,
+      message: body.message || `Inoni: ${body.path} aktualisiert`,
       content: toBase64(body.content),
       sha,
     }),
   });
   if (!res.ok) return json({ error: "github", status: res.status }, 502, cors);
+  if (body.path === PERSONA_PATH) personaCache = { text: "", at: 0 };
   return json({ ok: true, path: body.path }, 200, cors);
 }
