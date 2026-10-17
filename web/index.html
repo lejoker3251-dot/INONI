@@ -122,6 +122,10 @@
     font-family: var(--body); font-size: 16px; color: var(--fg); background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; min-height: 44px; min-width: 0; width: 100%;
   }
+  select {
+    font-family: var(--body); font-size: 16px; color: var(--fg); background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; min-height: 44px; min-width: 0; width: 100%;
+  }
   input::placeholder { color: var(--muted); opacity: 0.8; }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
@@ -146,7 +150,7 @@
 <div class="wrap">
   <header class="top">
     <h1 class="brand">I.N.O.N.I. <span>Butler</span></h1>
-    <div class="meta"><span id="clock">--:--:--</span> Ortszeit &middot; v0.6</div>
+    <div class="meta"><span id="clock">--:--:--</span> Ortszeit &middot; v0.6.2</div>
   </header>
 
   <section class="telemetry" aria-label="Status">
@@ -195,6 +199,16 @@
         <div class="budget-labels"><span>Hören 200 ms</span><span>Denken 400 ms</span><span>Sprechen 200 ms</span></div>
         <p class="note">Planwerte. Ein Gespräch fühlt sich natürlich an, wenn die gesamte Runde unter etwa 800 ms bleibt.</p>
       </section>
+      <section class="panel" aria-label="Stimme">
+        <details id="voiceDetails">
+          <summary>Stimme von Inoni</summary>
+          <div class="fields">
+            <label>Deutsche Stimme<select id="voiceSelect" aria-label="Deutsche Stimme"></select></label>
+            <button type="button" id="voiceTest">Stimme testen</button>
+          </div>
+          <p class="note">Bessere Stimmen: Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch. Dort eine Stimme mit "Erweitert" oder "Premium" laden und diese Seite neu laden. Automatisch wählt Inoni die beste deutsche Stimme.</p>
+        </details>
+      </section>
       <section class="panel" aria-label="Verbindung">
         <details id="connDetails">
           <summary>Verbindung zum Worker</summary>
@@ -213,7 +227,7 @@
         <h2>Bausteine</h2>
         <div class="pillar"><b>Motor</b><span class="chip scaffold">Gerüst</span><small>Workers AI im Worker, Claude optional</small></div>
         <div class="pillar"><b>Gedächtnis</b><span class="chip scaffold">Gerüst</span><small>Markdown in GitHub, Obsidian als Ansicht</small></div>
-        <div class="pillar"><b>Stimme</b><span class="chip new">Neu</span><small>Fish Audio über den Worker, Browser-Stimme als Rückfall</small></div>
+        <div class="pillar"><b>Stimme</b><span class="chip new">Neu</span><small>Beste deutsche iPad-Stimme, Fish Audio optional</small></div>
         <div class="pillar"><b>Gesicht</b><span class="chip draft">Entwurf</span><small>Dieses HUD als Home-Bildschirm-App</small></div>
       </section>
     </aside>
@@ -478,14 +492,14 @@
   var history = [];
   var busy = false;
 
-  function setConn(kind) {
+  function setConn(kind, detail) {
     var map = {
       none:  ["Demo, kein Worker", ""],
       set:   ["Worker eingetragen", ""],
       ok:    ["Worker erreichbar", "ok"],
       bad:   ["Worker nicht erreichbar", "bad"]
     };
-    connEl.textContent = map[kind][0];
+    connEl.textContent = (kind === "bad" && detail) ? detail : map[kind][0];
     connEl.className = map[kind][1];
     logTag.textContent = kind === "ok" ? "Live verbunden" : (kind === "set" ? "Worker eingetragen, noch nicht geprüft" : (kind === "bad" ? "Verbindung fehlgeschlagen" : "Beispieldialog, nicht live"));
   }
@@ -501,22 +515,87 @@
   var speechToken = 0;
   var SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
-  function setVoiceLabel() {
-    if (voiceKind === "fish") voiceState.textContent = "Fish Audio";
-    else voiceState.textContent = canSpeak ? "Browser-Vorleser" : "kein Vorleser verfügbar";
+  var voiceSelect = document.getElementById("voiceSelect");
+  var voiceTest = document.getElementById("voiceTest");
+  var speechUnlocked = false;
+
+  // Rangfolge: Premium vor Erweitert vor Siri vor Standard, de-DE vor anderen deutschen Varianten.
+  function scoreVoice(v) {
+    var n = (v.name || "") + " " + (v.voiceURI || ""), sc = 0;
+    if (/premium/i.test(n)) sc += 30;
+    if (/enhanced|erweitert/i.test(n)) sc += 20;
+    if (/siri/i.test(n)) sc += 15;
+    if (/^de[-_]DE$/i.test(v.lang || "")) sc += 5;
+    if (v.localService) sc += 1;
+    return sc;
   }
+  function germanVoices() {
+    var all = canSpeak ? (window.speechSynthesis.getVoices() || []) : [];
+    var de = [];
+    for (var i = 0; i < all.length; i++) { if (/^de([-_]|$)/i.test(all[i].lang || "")) de.push(all[i]); }
+    de.sort(function (a, b) { return scoreVoice(b) - scoreVoice(a); });
+    return de;
+  }
+  function pickVoice() {
+    var list = germanVoices(), saved = store("inoni.voiceURI");
+    if (saved) { for (var i = 0; i < list.length; i++) { if (list[i].voiceURI === saved) return list[i]; } }
+    return list[0] || null;
+  }
+  function setVoiceLabel() {
+    if (voiceKind === "fish") { voiceState.textContent = "Fish Audio"; return; }
+    if (!canSpeak) { voiceState.textContent = "kein Vorleser verfügbar"; return; }
+    var v = pickVoice();
+    voiceState.textContent = v ? "Browser: " + v.name : "Browser (keine deutsche Stimme)";
+  }
+  function fillVoiceList() {
+    if (!voiceSelect) return;
+    var list = germanVoices(), saved = store("inoni.voiceURI") || "";
+    voiceSelect.innerHTML = "";
+    var auto = document.createElement("option");
+    auto.value = ""; auto.textContent = list.length ? "Automatisch (beste deutsche Stimme)" : "Keine deutsche Stimme gefunden";
+    voiceSelect.appendChild(auto);
+    list.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.voiceURI; o.textContent = v.name + " (" + v.lang + ")";
+      voiceSelect.appendChild(o);
+    });
+    voiceSelect.value = saved;
+    if (voiceSelect.value !== saved) voiceSelect.value = "";
+    setVoiceLabel();
+  }
+  if (voiceSelect) voiceSelect.addEventListener("change", function () {
+    store("inoni.voiceURI", voiceSelect.value);
+    setVoiceLabel();
+  });
+  if (canSpeak) {
+    try { window.speechSynthesis.onvoiceschanged = fillVoiceList; } catch (e) { /* optional */ }
+  }
+  fillVoiceList();
+  setTimeout(fillVoiceList, 1200); // iOS lädt die Stimmenliste manchmal verzögert
   setVoiceLabel();
   if (!canSpeak && voiceKind !== "fish") voiceBtn.hidden = true;
 
   // iOS erlaubt Audio nur nach einer Berührung. Beim Senden und beim Mikro-Tipp wird der Player kurz freigeschaltet.
   function unlockAudio() {
     try { player.src = SILENCE; var pr = player.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) { /* optional */ }
+    if (canSpeak && !speechUnlocked) {
+      try {
+        var quiet = new SpeechSynthesisUtterance(" ");
+        quiet.volume = 0;
+        window.speechSynthesis.speak(quiet);
+        speechUnlocked = true;
+      } catch (e) { /* optional */ }
+    }
   }
   function stopSpeaking() {
     speechToken++;
     try { player.pause(); } catch (e) { /* optional */ }
     if (canSpeak) { try { window.speechSynthesis.cancel(); } catch (e) { /* optional */ } }
   }
+  if (voiceTest) voiceTest.addEventListener("click", function () {
+    unlockAudio();
+    speakBrowser("Guten Tag. Ich bin Inoni, Ihr Butler.", 0);
+  });
   voiceBtn.addEventListener("click", function () {
     voiceOn = !voiceOn;
     voiceBtn.setAttribute("aria-pressed", String(voiceOn));
@@ -530,9 +609,10 @@
       try {
         window.speechSynthesis.cancel();
         var u = new SpeechSynthesisUtterance(text);
-        u.lang = "de-DE";
-        var voices = window.speechSynthesis.getVoices() || [];
-        for (var i = 0; i < voices.length; i++) { if (/^de/i.test(voices[i].lang)) { u.voice = voices[i]; break; } }
+        var v = pickVoice();
+        u.lang = v ? v.lang : "de-DE";
+        if (v) u.voice = v;
+        u.rate = 1;
         u.onend = u.onerror = function () { resolve(); };
         window.speechSynthesis.speak(u);
         setTimeout(resolve, 60000);
@@ -559,7 +639,8 @@
   }
   // Gibt ein Versprechen zurück, das endet, wenn das Vorlesen fertig ist.
   async function speak(text) {
-    if (!voiceOn) return;
+    text = String(text || "").replace(/[*_#`>~]/g, "").replace(/\s+/g, " ").trim();
+    if (!voiceOn || !text) return;
     var token = ++speechToken;
     if (voiceKind === "fish" && cfg.url && cfg.token) {
       try { await speakFish(text, token); return; }
@@ -662,7 +743,16 @@
   async function checkHealth() {
     try {
       var res = await fetch(cfg.url.replace(/\/+$/, "") + "/api/health", { headers: { authorization: "Bearer " + cfg.token } });
-      if (!res.ok) { setConn("bad"); return; }
+      if (!res.ok) {
+        var err = await res.json().catch(function () { return {}; });
+        var why;
+        if (err.error === "access_token_nicht_gesetzt") why = "Secret ACCESS_TOKEN fehlt im Worker (Deploy?)";
+        else if (res.status === 401) why = "Schlüssel falsch (401)";
+        else if (res.status === 404) why = "Worker-Code nicht aktiv (404)";
+        else why = "Worker-Fehler " + res.status;
+        setConn("bad", why);
+        return;
+      }
       var d = await res.json().catch(function () { return {}; });
       if (d.model) modelEl.textContent = d.model.replace(/^@cf\//, "");
       voiceKind = d.voice === "fish" ? "fish" : "browser";
@@ -671,7 +761,7 @@
       var memEl = document.getElementById("memState");
       if (memEl) memEl.textContent = d.memory === "aktiv" ? "Repo aktiv (lesen und schreiben)" : "Repo, nur Startdateien";
       setConn("ok");
-    } catch (e) { setConn("bad"); }
+    } catch (e) { setConn("bad", "Adresse nicht erreichbar (Tippfehler? https:// nötig)"); }
   }
 
   var clock = document.getElementById("clock");
