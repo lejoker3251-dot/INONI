@@ -8,6 +8,19 @@
 - Kostenlos starten: Der Nutzer will kein Geld ausgeben. Das Gehirn läuft vorerst über Cloudflare Workers AI, die Stimme über die Gratis-Stufe von Fish Audio.
 - Wir arbeiten im kostenlosen Claude-Tarif. Cloud-Sessions mit GitHub-Verknüpfung sind dort laut Doku nicht verfügbar, ich kann daher nicht direkt ins Repo schreiben.
 
+## v0.6.2, 17.10.2026
+- Stimme: Inoni wählt jetzt automatisch die beste installierte deutsche Browser-Stimme (Premium vor Erweitert vor Siri vor Standard). Im neuen Bereich "Stimme von Inoni" lässt sich eine Stimme festlegen und testen, die Wahl bleibt gespeichert.
+- Die Sprachausgabe des Browsers wird beim Senden und beim Mikro-Tipp freigeschaltet (iOS erlaubt sie sonst oft nicht).
+- Markdown-Zeichen werden vor dem Vorlesen entfernt.
+- Fish Audio bleibt optional: ohne Secret FISH_API_KEY liest nur die Browser-Stimme vor.
+- Geprüft in Chromium mit simulierten iPad-Stimmen (Rangfolge, Auswahl, Speichern, Test, Antwort). Nicht geprüft: echtes iPad, tatsächliche Klangqualität.
+- Nächster Schritt: Premium-Stimme auf dem iPad laden (Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch), HUD neu laden, "Stimme testen".
+
+## v0.6.1, 17.10.2026
+- Das HUD zeigt jetzt die genaue Ursache, wenn der Worker nicht erreichbar ist (Schlüssel falsch, Secret fehlt, Code nicht aktiv, Adresse falsch).
+- Der Worker meldet "access_token_nicht_gesetzt", wenn das Secret ACCESS_TOKEN zur Laufzeit fehlt.
+- wrangler.toml: keep_vars = true, damit im Dashboard gesetzte Variablen beim Deploy nicht gelöscht werden.
+
 ## Stand 17.10.2026 (v0.6)
 GitHub-Repo: lejoker3251-dot/INONI (öffentlich). Ich kann es lesen, aber nicht ändern.
 

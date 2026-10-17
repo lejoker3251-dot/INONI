@@ -3,6 +3,8 @@
 name = "inoni"
 main = "worker/src/index.js"
 compatibility_date = "2026-10-01"
+# Im Dashboard gesetzte Variablen bleiben beim Deploy erhalten.
+keep_vars = true
 
 [assets]
 directory = "./web"

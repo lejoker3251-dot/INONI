@@ -32,7 +32,9 @@ Ein einziger Worker mit dem Namen `inoni` liefert die Seite (Ordner `web`) und b
 
 ## Die Stimme: Fish Audio
 
-Ohne weiteres Zutun liest Inoni mit der Browser-Stimme vor. Für eine bessere Stimme:
+Standardmäßig liest Inoni mit der besten deutschen Stimme des iPads vor, kostenlos und ohne dass Daten das Gerät verlassen. Für eine bessere Stimme: Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort eine Stimme mit "Erweitert" oder "Premium" laden und das HUD neu laden. Im HUD kannst du unter "Stimme von Inoni" eine Stimme wählen und testen.
+
+Optional, für eine noch natürlichere Stimme, gibt es Fish Audio:
 
 1. Bei fish.audio ein Konto anlegen und unter API-Schlüssel einen Schlüssel erzeugen (laut Anbieter keine Kreditkarte nötig).
 2. In Cloudflare das Secret `FISH_API_KEY` anlegen. Danach zeigt die Statusleiste "Fish Audio".
