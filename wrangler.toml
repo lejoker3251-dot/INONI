@@ -1,4 +1,4 @@
-# Ein einziger Cloudflare-Worker: liefert das HUD (Ordner web) und die API (/api/*).
+# Inoni: ein einziger Cloudflare-Worker, liefert das HUD (Ordner web) und die API (/api/*).
 # Der Name muss dem bestehenden Worker "inoni" entsprechen.
 name = "inoni"
 main = "worker/src/index.js"
@@ -24,4 +24,9 @@ MEMORY_REPO = "lejoker3251-dot/INONI"
 AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 # Wird nur benutzt, wenn das Secret ANTHROPIC_API_KEY gesetzt ist.
 CLAUDE_MODEL = "claude-sonnet-5-5"
+# Stimme: Fish Audio. Wird nur benutzt, wenn das Secret FISH_API_KEY gesetzt ist.
+# Die Gratisphase von s2.1-pro-free läuft laut Anbieter bis 30.11.2026, danach Preise prüfen.
+FISH_MODEL = "s2.1-pro-free"
+# Optional: ID einer deutschen Stimme aus der Fish-Stimmenbibliothek. Leer lassen = Standardstimme.
+FISH_VOICE_ID = ""
 ALLOWED_ORIGIN = "https://inoni.420joker-68b.workers.dev"
