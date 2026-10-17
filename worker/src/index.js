@@ -43,6 +43,7 @@ export default {
     };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
+    if (!env.ACCESS_TOKEN) return json({ error: "access_token_nicht_gesetzt" }, 500, cors);
     if (!authorized(request, env)) return json({ error: "unauthorized" }, 401, cors);
 
     try {
