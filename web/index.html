@@ -144,7 +144,7 @@
   </header>
 
   <section class="telemetry" aria-label="Status">
-    <div><small>Modell</small><b>claude-sonnet-5-5</b></div>
+    <div><small>Modell</small><b id="modelState">noch nicht verbunden</b></div>
     <div><small>Verbindung</small><b id="connState">Demo, kein Worker</b></div>
     <div><small>Stimme</small><b id="voiceState">Browser-Vorleser</b></div>
     <div><small>Gedächtnis</small><b>2 Dateien im Repo</b></div>
@@ -166,7 +166,7 @@
         <button type="button" data-state="speaking" aria-pressed="false">Spricht</button>
         <button type="button" id="demoBtn" aria-pressed="false">Demo starten</button>
       </div>
-      <p class="hint">Ohne Worker läuft ein Beispieldialog. Mit eingetragenem Worker antwortet Claude.</p>
+      <p class="hint">Ohne Worker läuft ein Beispieldialog. Mit eingetragenem Zugangsschlüssel antwortet Jarvis live.</p>
     </section>
 
     <aside class="col-right">
@@ -205,7 +205,7 @@
     <aside class="col-left" aria-label="Bausteine">
       <section class="panel">
         <h2>Bausteine</h2>
-        <div class="pillar"><b>Motor</b><span class="chip scaffold">Gerüst</span><small>Claude API im Worker</small></div>
+        <div class="pillar"><b>Motor</b><span class="chip scaffold">Gerüst</span><small>Workers AI im Worker, Claude optional</small></div>
         <div class="pillar"><b>Gedächtnis</b><span class="chip scaffold">Gerüst</span><small>Markdown in GitHub, Obsidian als Ansicht</small></div>
         <div class="pillar"><b>Stimme</b><span class="chip plan">Übergang</span><small>Vorerst Browser-Stimme, später Cloudflare</small></div>
         <div class="pillar"><b>Gesicht</b><span class="chip draft">Entwurf</span><small>Dieses HUD als Home-Bildschirm-App</small></div>
@@ -230,7 +230,7 @@
   var LABEL = {
     idle:      ["BEREIT", "wartet auf „Jarvis“", "bereit"],
     listening: ["HÖRT ZU", "Spracherkennung aktiv", "hört zu"],
-    thinking:  ["DENKT", "Claude formuliert die Antwort", "denkt"],
+    thinking:  ["DENKT", "Jarvis formuliert die Antwort", "denkt"],
     speaking:  ["SPRICHT", "Sprachausgabe läuft", "spricht"]
   };
 
@@ -417,7 +417,7 @@
   var Q = ["Jarvis, was steht heute an?", "Was weißt du noch über unser Projekt?", "Lies mir die letzte Notiz vor."];
   var A = [
     "Guten Abend. Drei Punkte: HUD-Entwurf prüfen, Schlüssel im Worker setzen, Gedächtnis-Repo anlegen.",
-    "Der Motor ist die Claude API, das Gedächtnis liegt als Markdown auf GitHub, das HUD bist du gerade.",
+    "Der Motor ist ein kostenloses Cloudflare-Modell, später lässt er sich auf Claude umstellen. Das Gedächtnis liegt als Markdown auf GitHub.",
     "Die letzte Notiz lautet: Stimme zuerst über Cloudflare testen, dann ans HUD anbinden."
   ];
   addMsg("du", Q[0]);
@@ -477,7 +477,7 @@
     };
     connEl.textContent = map[kind][0];
     connEl.className = map[kind][1];
-    logTag.textContent = kind === "ok" ? "Live mit Claude" : (kind === "set" ? "Worker eingetragen, noch nicht geprüft" : (kind === "bad" ? "Verbindung fehlgeschlagen" : "Beispieldialog, nicht live"));
+    logTag.textContent = kind === "ok" ? "Live verbunden" : (kind === "set" ? "Worker eingetragen, noch nicht geprüft" : (kind === "bad" ? "Verbindung fehlgeschlagen" : "Beispieldialog, nicht live"));
   }
   urlInput.value = cfg.url; tokenInput.value = cfg.token;
   setConn(cfg.url && cfg.token ? "set" : "none");
@@ -525,8 +525,12 @@
           headers: { "content-type": "application/json", authorization: "Bearer " + cfg.token },
           body: JSON.stringify({ messages: history })
         });
-        if (!res.ok) throw new Error("Status " + res.status);
+        if (!res.ok) {
+          var ed = await res.json().catch(function () { return {}; });
+          throw new Error("Status " + res.status + (ed.error ? ", " + ed.error : "") + (ed.detail ? ": " + String(ed.detail).slice(0, 160) : ""));
+        }
         var data = await res.json();
+        if (data.model) modelEl.textContent = data.model.replace(/^@cf\//, "");
         reply = data.text || "Ich habe keine Antwort erhalten.";
         history.push({ role: "assistant", content: reply });
         answered = true;
@@ -584,11 +588,19 @@
     history = [];
     if (!cfg.url) { setConn("none"); return; }
     setConn("set");
+    await checkHealth();
+  });
+
+  var modelEl = document.getElementById("modelState");
+  async function checkHealth() {
     try {
       var res = await fetch(cfg.url.replace(/\/+$/, "") + "/api/health", { headers: { authorization: "Bearer " + cfg.token } });
-      setConn(res.ok ? "ok" : "bad");
+      if (!res.ok) { setConn("bad"); return; }
+      var d = await res.json().catch(function () { return {}; });
+      if (d.model) modelEl.textContent = d.model.replace(/^@cf\//, "");
+      setConn("ok");
     } catch (e) { setConn("bad"); }
-  });
+  }
 
   var clock = document.getElementById("clock");
   function tick() { clock.textContent = new Date().toLocaleTimeString("de-DE", { hour12: false }); }
@@ -596,6 +608,7 @@
 
   if (window.ResizeObserver) new ResizeObserver(resize).observe(cv); else window.addEventListener("resize", resize);
   resize();
+  if (cfg.url && cfg.token) checkHealth();
   if (reduced) { draw(); } else { requestAnimationFrame(frame); if (!(cfg.url && cfg.token)) setTimeout(startDemo, 1200); }
 })();
 </script>
